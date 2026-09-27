@@ -1,0 +1,1302 @@
+﻿<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a0d12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RC TX">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>RC TX — 6CH · bavan</title>
+<style>
+:root{
+  --bg:#0a0d12; --panel:#141a22; --panel2:#1c2430; --line:#2a3441;
+  --txt:#dbe4ef; --dim:#78889c; --ok:#2ee6a8; --bad:#ff4d5e;
+  --acc:#4da3ff; --warn:#ffb020;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;overscroll-behavior:none}
+body{
+  background:var(--bg); color:var(--txt);
+  font:500 12px/1.2 ui-monospace,Menlo,Consolas,monospace;
+  overflow:hidden; user-select:none; -webkit-user-select:none;
+}
+#app{
+  position:fixed; inset:0;
+  display:flex; flex-direction:column; gap:4px; padding:4px;
+  padding-top:calc(4px + env(safe-area-inset-top));
+  padding-bottom:calc(4px + env(safe-area-inset-bottom));
+  padding-left:calc(4px + env(safe-area-inset-left));
+  padding-right:calc(4px + env(safe-area-inset-right));
+}
+#topbar{
+  flex:0 0 auto; display:flex; align-items:center; gap:8px;
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:10px; padding:3px 10px;
+}
+#conn{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad);
+  box-shadow:0 0 8px var(--bad); transition:.2s}
+.dot.on{background:var(--ok); box-shadow:0 0 8px var(--ok)}
+#tele{display:flex; gap:12px; flex:1; justify-content:center; font-size:11px}
+.ti{display:flex; align-items:center; gap:3px; color:var(--dim); transition:.2s}
+.ti b{color:var(--txt); font-weight:700; font-variant-numeric:tabular-nums}
+.ti.sim b{color:var(--warn); opacity:.75}
+.tb-btn{width:32px;height:24px;border-radius:8px;border:1px solid var(--line);
+  background:var(--panel2); color:var(--txt); font-size:14px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; padding:0}
+.tb-btn:active{background:#2a3546}
+#chmon{flex:0 0 auto; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:4px}
+.chip{position:relative; overflow:hidden; background:var(--panel2);
+  border:1px solid var(--line); border-radius:6px; padding:2px 5px;
+  display:flex; flex-direction:column; cursor:pointer; user-select:none}
+.chip::before{content:''; position:absolute; left:0; bottom:0; top:0;
+  width:var(--p,50%); background:#2ee6a822; transition:width .06s linear}
+.chip.rev{ border-color:var(--warn); }
+.chip.rev::before{ background:#ffb02033; }
+.chip.rev::after{content:'R'; position:absolute; right:3px; top:2px;
+  font-size:8px; font-weight:700; color:var(--warn);
+  background:#ffb02033; padding:0 3px; border-radius:3px; z-index:2}
+.chip .cid{font-size:8px; color:var(--dim); position:relative; letter-spacing:.4px; z-index:1}
+.chip .cval{font-size:12px; font-weight:700; position:relative; z-index:1; font-variant-numeric:tabular-nums}
+#main{flex:1 1 auto; min-height:0; position:relative;
+  display:flex; flex-direction:row; gap: 6px}
+.half-zone{flex:1 1 50%; min-width:0; position:relative;
+  display:flex; align-items:center; justify-content:center;
+  touch-action:none; cursor:crosshair}
+.half-zone::after{content:''; position:absolute; inset:2px;
+  border:1px dashed #ffffff08; border-radius:14px; pointer-events:none}
+.stick-group{position:relative; display:block}
+.gimbal{position:relative;
+  background: linear-gradient(180deg, #1a212b, #0f141b);
+  border:2px solid var(--line); border-radius:16px;
+  box-shadow: inset 0 0 30px #000a, 0 4px 16px #0008;
+  pointer-events:none; overflow:hidden}
+.gimbal::before{content:''; position:absolute; inset:0; pointer-events:none;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 1px), #ffffff0a 50%, transparent calc(50% + 1px)),
+    linear-gradient(0deg, transparent calc(50% - 1px), #ffffff0a 50%, transparent calc(50% + 1px))}
+.gimbal .c{position:absolute; width:10px; height:10px; border:1px solid #ffffff20; pointer-events:none}
+.gimbal .c.tl{top:7px;left:7px;border-right:0;border-bottom:0;border-top-left-radius:7px}
+.gimbal .c.tr{top:7px;right:7px;border-left:0;border-bottom:0;border-top-right-radius:7px}
+.gimbal .c.bl{bottom:7px;left:7px;border-right:0;border-top:0;border-bottom-left-radius:7px}
+.gimbal .c.br{bottom:7px;right:7px;border-left:0;border-top:0;border-bottom-right-radius:7px}
+.stick{position:absolute; width:22%; height:22%;
+  left:50%; top:50%; transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:radial-gradient(circle at 34% 28%, #8091a8, #333d4c 62%, #1a1f28);
+  border:1px solid #57657b;
+  box-shadow:0 6px 16px #000c, inset 0 1px 2px #fff2;
+  pointer-events:none; z-index:2}
+.stick::after{content:''; position:absolute; inset:24%; border-radius:50%;
+  background:radial-gradient(circle at 40% 35%, #2ee6a855, transparent 70%)}
+#gimbalR .stick::after{background:radial-gradient(circle at 40% 35%, #ffb02066, transparent 70%)}
+
+/* ---------- THROTTLE GRAB BAND visual guide ---------- */
+.throttle-band{
+  position:absolute;
+  left:0; right:0;
+  height:50%;
+  background: linear-gradient(180deg, transparent 0%, #ffb02010 30%, #ffb0201a 50%, #ffb02010 70%, transparent 100%);
+  border-top:1px dashed #ffb02040;
+  border-bottom:1px dashed #ffb02040;
+  pointer-events:none;
+  z-index:1;
+  transition: top .04s linear;
+}
+.throttle-lock-hint{
+  position:absolute; left:6px; bottom:6px;
+  font-size:8px; color:#ffb02088;
+  letter-spacing:.5px; pointer-events:none; z-index:3;
+  background:#ffb02010; padding:1px 5px; border-radius:4px;
+  border:1px solid #ffb02030;
+}
+.gimbal-tag{position:absolute; top:6px; left:10px; font-size:9px;
+  color:#ffffff55; letter-spacing:.5px; pointer-events:none; z-index:3}
+.trim-lbl{font-size:8px; color:var(--dim); letter-spacing:.6px;
+  font-weight:700; text-align:center}
+.trim-h{position:absolute; left:0; right:0;
+  display:flex; align-items:center; gap:5px;
+  background:var(--panel2); border:1px solid var(--line);
+  border-radius:7px; padding:3px 6px; height:26px;
+  user-select:none; z-index: 5}
+.trim-h-lbl{color:var(--dim); font-size:8px; font-weight:700; letter-spacing:.5px; min-width:22px}
+.trim-h-track{position:relative; flex:1; height:14px;
+  background:#0d1219; border:1px solid var(--line); border-radius:4px;
+  touch-action:none; cursor:pointer; overflow:hidden}
+.trim-h-center{position:absolute; left:50%; top:0; bottom:0;
+  width:1px; background:#ffffff22; transform:translateX(-50%)}
+.trim-h-fill{position:absolute; top:1px; bottom:1px;
+  background:#4da3ff44; border-radius:2px}
+.trim-h-thumb{position:absolute; top:1px; bottom:1px; width:8px;
+  border-radius:2px; background:#7d8da4; border:1px solid #a8b8cc;
+  transform:translateX(-50%); box-shadow:0 1px 3px #000a; pointer-events:none;
+  transition: left .1s ease}
+.trim-h-val{min-width:32px; text-align:center; color:var(--txt);
+  font-weight:700; font-variant-numeric:tabular-nums; font-size:10px}
+.trim-v{position:absolute; top:0; bottom:0;
+  display:flex; flex-direction:column; align-items:stretch; gap:3px;
+  background:var(--panel2); border:1px solid var(--line);
+  border-radius:7px; padding:6px 3px 3px; width:22px;
+  user-select:none; z-index: 5}
+.trim-v-track{position:relative; flex:1; width:14px; align-self:center;
+  background:#0d1219; border:1px solid var(--line); border-radius:4px;
+  touch-action:none; cursor:pointer; overflow:hidden; min-height: 60px}
+.trim-v-center{position:absolute; left:0; right:0; top:50%;
+  height:1px; background:#ffffff22; transform:translateY(-50%)}
+.trim-v-fill{position:absolute; left:1px; right:1px;
+  background:#4da3ff44; border-radius:2px}
+.trim-v-thumb{position:absolute; left:1px; right:1px; height:8px;
+  border-radius:2px; background:#7d8da4; border:1px solid #a8b8cc;
+  transform:translateY(-50%); box-shadow:0 1px 3px #000a; pointer-events:none;
+  transition: top .1s ease}
+.trim-v-val{font-size:8px; font-weight:700; text-align:center;
+  color:var(--txt); font-variant-numeric:tabular-nums; line-height:1}
+#groupL .trim-v { right: 100%; margin-right: 6px; }
+#groupL .trim-h { top: 100%; margin-top: 6px; }
+#groupR .trim-v { left: 100%; margin-left: 6px; }
+#groupR .trim-h { top: 100%; margin-top: 6px; }
+.center-label-portrait{position:absolute; left:50%; top:50%;
+  transform:translate(-50%,-50%);
+  font: 700 13px/1 ui-monospace,Menlo,Consolas,monospace;
+  letter-spacing: 3px; color: var(--acc);
+  text-shadow: 0 0 12px #4da3ff88, 0 0 3px #4da3ffcc;
+  pointer-events:none; white-space:nowrap; opacity:.9; z-index: 4}
+#centerCol{display:none; flex: 0 0 auto; width: 176px;
+  flex-direction: column; gap: 5px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 5px; overflow: hidden}
+#gauges{display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  align-content: start; flex: 1 1 auto; min-height: 0}
+.gauge{position: relative; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 7px; padding: 3px 2px 1px;
+  cursor: pointer; user-select: none;
+  transition: border-color .15s, background .15s; overflow: hidden}
+.gauge:active { background: #243040; }
+.gauge.rev { border-color: var(--warn); background: #2a2216; }
+.gauge.rev::after {content: 'R'; position: absolute;
+  top: 2px; right: 3px; font-size: 8px; font-weight: 700;
+  color: var(--warn); background: #ffb02033; padding: 0 3px; border-radius: 3px}
+.gauge svg { width: 100%; height: auto; display: block; }
+.g-bg   { fill: none; stroke: #1a212b; stroke-width: 7; stroke-linecap: round; }
+.g-fg   { fill: none; stroke: var(--acc); stroke-width: 7; stroke-linecap: round;
+          transition: stroke-dasharray .05s linear; }
+.gauge.rev .g-fg { stroke: var(--warn); }
+.g-needle { stroke: var(--txt); stroke-width: 1.5; stroke-linecap: round; }
+.g-hub    { fill: var(--txt); }
+.g-txt    { fill: var(--txt); font: 700 11px ui-monospace,monospace; }
+.g-lbl    { font-size: 8px; color: var(--dim); letter-spacing: .3px; margin-top:-1px; }
+#botbar{flex:0 0 auto; display:flex; justify-content:space-between; align-items:center;
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:10px; padding:4px 12px; min-height: 58px; gap: 8px}
+.ctl-box{display:flex; align-items:center; gap:8px}
+.ctl-lbl{font-size:10px; color:var(--dim); letter-spacing:.5px}
+.ctl-lbl b{color:var(--acc); font-weight:700}
+.sw5{position:relative; width:56px; height:28px; border-radius:9px;
+  background:#0d1219; border:1px solid var(--line);
+  box-shadow:inset 0 2px 6px #0008; touch-action:none; cursor:pointer}
+.sw5 .knob{position:absolute; top:50%; transform:translateY(-50%);
+  width:22px; height:22px; border-radius:6px;
+  background:linear-gradient(#66788f,#39445a);
+  border:1px solid #7c8ea6; box-shadow:0 1px 3px #000a;
+  transition:left .14s cubic-bezier(.2,.7,.3,1.2), background .15s}
+.sw5.on .knob{background:linear-gradient(#2ee6a8,#159a6d); border-color:#2ee6a8;
+  box-shadow:0 0 10px #2ee6a877}
+.knob-wrap{position:relative; width:50px; height:50px;
+  touch-action:none; cursor:grab}
+.knob-wrap:active{cursor:grabbing}
+.knob-dial{position:absolute; inset:0; border-radius:50%;
+  background:radial-gradient(circle at 40% 28%, #3a4556, #1a2029 72%);
+  border:2px solid var(--line);
+  box-shadow:inset 0 0 8px #0008, 0 2px 6px #000a;
+  transition: transform .05s linear}
+.knob-mark{position:absolute; left:50%; top:8%;
+  width:9%; height:32%; border-radius:2px;
+  background:var(--acc); transform:translateX(-50%);
+  box-shadow:0 0 8px var(--acc)}
+.knob-cap{position:absolute; inset:24%; border-radius:50%;
+  background:radial-gradient(circle at 40% 30%, #66768b, #2b3441);
+  border:1px solid #55637a;
+  box-shadow:inset 0 1px 2px #ffffff22; pointer-events:none}
+.mem-box{display:flex; gap:8px; align-items:center}
+.mem-btn{width:42px; height:42px; border-radius:50%;
+  background:radial-gradient(circle at 34% 28%, #2a3546, #161d27);
+  border:2px solid var(--line); color: var(--txt);
+  font:700 15px ui-monospace,monospace;
+  cursor:pointer; user-select:none; transition: .15s;
+  position: relative; touch-action:none}
+.mem-btn:active{ transform: scale(0.94); }
+.mem-btn.saved{border-color: var(--ok); color: var(--ok);
+  box-shadow: 0 0 12px #2ee6a855, inset 0 0 8px #2ee6a822}
+.mem-btn.saved::after{content:''; position:absolute; bottom:3px; left:50%;
+  transform:translateX(-50%); width:6px; height:6px; border-radius:50%;
+  background:var(--ok); box-shadow: 0 0 6px var(--ok)}
+#toast{position: fixed; left: 50%; bottom: 90px;
+  transform: translateX(-50%) translateY(20px);
+  background: #1a212b; border:1px solid var(--line);
+  color: var(--txt); padding: 6px 14px;
+  border-radius: 8px; font-size: 11px;
+  opacity: 0; pointer-events: none; transition: .22s;
+  z-index: 200; box-shadow: 0 6px 18px #000a}
+#toast.show{ opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.ok{ border-color: var(--ok); color: var(--ok); }
+#toast.warn{ border-color: var(--warn); color: var(--warn); }
+@media (orientation: landscape) {
+  #app { gap:3px; padding:3px;
+    padding-top: calc(3px + env(safe-area-inset-top));
+    padding-bottom: calc(3px + env(safe-area-inset-bottom)); }
+  #chmon { display: none; }
+  #centerCol { display: flex; }
+  #botbar { min-height: 54px; padding: 3px 14px; }
+}
+@media (orientation: portrait) { #centerCol { display: none; } }
+#modal{position:fixed; inset:0; background:#000b; z-index:99; display:none;
+  overflow-y:auto; padding:14px;
+  padding-top:calc(14px + env(safe-area-inset-top));
+  padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+#modal.show{display:block}
+.sheet{max-width:520px; margin:0 auto; display:flex; flex-direction:column; gap:10px}
+.sheet h2{margin:0; font-size:15px; color:var(--acc)}
+.card{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px}
+.ct{font-size:11px; color:var(--acc); margin-bottom:6px}
+.cfgrow{display:flex; align-items:center; justify-content:space-between;
+  gap:8px; padding:6px 0; border-bottom:1px solid #ffffff08}
+.cfgrow:last-child{border-bottom:0}
+.cfgrow span{font-size:11px; color:var(--dim)}
+.cfgrow input[type=number], .cfgrow input[type=text]{
+  width:120px; background:#0d1219; border:1px solid var(--line); border-radius:6px;
+  color:var(--txt); padding:5px 7px; font:600 12px ui-monospace,monospace; text-align:center}
+.cfgrow input[type=text]{width:200px; text-align:left; direction:ltr}
+.cfgrow input[type=checkbox]{width:20px;height:20px;accent-color:#2ee6a8}
+.acts{display:flex; gap:8px}
+.acts button{flex:1; padding:11px; border-radius:9px; border:1px solid var(--line);
+  background:var(--panel2); color:var(--txt);
+  font:700 12px ui-monospace,monospace; cursor:pointer}
+.acts button.pri{background:linear-gradient(#2ee6a8,#159a6d); color:#04140e; border-color:#2ee6a8}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header id="topbar">
+    <div id="conn"><span class="dot" id="dot"></span><span id="connTxt">قطع</span></div>
+    <div id="tele">
+      <span class="ti" id="tiBat">🔋<b id="tBat">—</b>V</span>
+      <span class="ti" id="tiRssi">📶<b id="tRssi">—</b>%</span>
+      <span class="ti" id="tiDist">📏<b id="tDist">—</b>m</span>
+    </div>
+    <button id="fsBtn" class="tb-btn" title="تمام صفحه">⛶</button>
+    <button id="gear" class="tb-btn">⚙</button>
+  </header>
+
+  <div id="chmon"></div>
+
+  <div id="main">
+    <div class="half-zone" id="zoneL">
+      <div class="stick-group" id="groupL">
+        <div class="gimbal" id="gimbalL">
+          <div class="gimbal-tag">ELE / AIL</div>
+          <div class="c tl"></div><div class="c tr"></div>
+          <div class="c bl"></div><div class="c br"></div>
+          <div class="stick"></div>
+        </div>
+        <div class="trim-v" data-axis="ly">
+          <div class="trim-v-track">
+            <div class="trim-v-center"></div>
+            <div class="trim-v-fill"></div>
+            <div class="trim-v-thumb"></div>
+          </div>
+          <span class="trim-lbl">ELE</span>
+          <span class="trim-v-val">+0</span>
+        </div>
+        <div class="trim-h" data-axis="lx">
+          <span class="trim-h-lbl">AIL</span>
+          <div class="trim-h-track">
+            <div class="trim-h-center"></div>
+            <div class="trim-h-fill"></div>
+            <div class="trim-h-thumb"></div>
+          </div>
+          <span class="trim-h-val">+0</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="centerCol">
+      <div id="gauges"></div>
+      <div class="center-label-portrait" style="position:static;transform:none;text-align:center;font-size:12px;">bavan</div>
+    </div>
+
+    <div class="center-label-portrait" id="bavanPortrait">bavan</div>
+
+    <div class="half-zone" id="zoneR">
+      <div class="stick-group" id="groupR">
+        <div class="gimbal" id="gimbalR">
+          <div class="throttle-band" id="thrBand"></div>
+          <div class="gimbal-tag">THR / RUD</div>
+          <div class="throttle-lock-hint" id="thrHint">گاز را از نوار زرد بگیر</div>
+          <div class="c tl"></div><div class="c tr"></div>
+          <div class="c bl"></div><div class="c br"></div>
+          <div class="stick"></div>
+        </div>
+        <div class="trim-v" data-axis="ry">
+          <div class="trim-v-track">
+            <div class="trim-v-center"></div>
+            <div class="trim-v-fill"></div>
+            <div class="trim-v-thumb"></div>
+          </div>
+          <span class="trim-lbl">THR</span>
+          <span class="trim-v-val">+0</span>
+        </div>
+        <div class="trim-h" data-axis="rx">
+          <span class="trim-h-lbl">RUD</span>
+          <div class="trim-h-track">
+            <div class="trim-h-center"></div>
+            <div class="trim-h-fill"></div>
+            <div class="trim-h-thumb"></div>
+          </div>
+          <span class="trim-h-val">+0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="botbar">
+    <div class="ctl-box">
+      <div class="ctl-lbl">CH5 <b>SW</b></div>
+      <div class="sw5" id="sw5"><div class="knob"></div></div>
+    </div>
+    <div class="mem-box">
+      <button class="mem-btn" id="mem1">1</button>
+      <button class="mem-btn" id="mem2">2</button>
+    </div>
+    <div class="ctl-box">
+      <div class="ctl-lbl">CH6 <b>KNOB</b></div>
+      <div class="knob-wrap" id="knob6">
+        <div class="knob-dial"><div class="knob-mark"></div></div>
+        <div class="knob-cap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal"><div class="sheet" id="sheet"></div></div>
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   utils
+============================================================ */
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+
+/* ============================================================
+   FULLSCREEN — پرتابل و ایمن
+============================================================ */
+function isFullscreen(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement ||
+            document.mozFullScreenElement || document.msFullscreenElement);
+}
+function goFullscreen(){
+  if(isFullscreen()) return;
+  const el = document.documentElement;
+  try{
+    if(el.requestFullscreen)        el.requestFullscreen({navigationUI:'hide'});
+    else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if(el.mozRequestFullScreen)    el.mozRequestFullScreen();
+    else if(el.msRequestFullscreen)     el.msRequestFullscreen();
+  }catch(e){}
+}
+function exitFullscreen(){
+  try{
+    if(document.exitFullscreen)        document.exitFullscreen();
+    else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+    else if(document.mozCancelFullScreen)  document.mozCancelFullScreen();
+    else if(document.msExitFullscreen)     document.msExitFullscreen();
+  }catch(e){}
+}
+function toggleFullscreen(){
+  if(isFullscreen()) exitFullscreen();
+  else goFullscreen();
+}
+// on first touch anywhere → try to go fullscreen (browser gesture required)
+let fsTried = false;
+function tryAutoFullscreen(){
+  if(fsTried) return;
+  fsTried = true;
+  if(!isFullscreen()) goFullscreen();
+}
+window.addEventListener('pointerdown', tryAutoFullscreen, { once:true, capture:true });
+$('#fsBtn').addEventListener('click', e => { e.stopPropagation(); toggleFullscreen(); });
+document.addEventListener('fullscreenchange', () => {
+  const on = isFullscreen();
+  $('#fsBtn').textContent = on ? '⛶' : '⛶';
+  $('#fsBtn').style.color = on ? 'var(--ok)' : 'var(--txt)';
+});
+// on load: if in installed PWA (standalone display) we're already fullscreen
+if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches){
+  $('#fsBtn').style.color = 'var(--ok)';
+}
+
+/* ============================================================
+   config
+============================================================ */
+const DEF = {
+  wsUrl : 'ws://192.168.4.1:81/',
+  rateHz: 50,
+  trimMax: 150,
+  inv: { lx:false, ly:false, rx:false, ry:false },
+  rev: [false,false,false,false,false,false],
+};
+let cfg = JSON.parse(JSON.stringify(DEF));
+try{
+  const s = JSON.parse(localStorage.getItem('rctx_v7') || 'null');
+  if(s){
+    Object.assign(cfg, s);
+    cfg.inv = Object.assign({}, DEF.inv, s.inv || {});
+    cfg.rev = Array.isArray(s.rev) ? s.rev.concat(new Array(6).fill(false)).slice(0,6) : DEF.rev.slice();
+  }
+}catch(e){}
+const save = () => localStorage.setItem('rctx_v7', JSON.stringify(cfg));
+
+/* ============================================================
+   constants
+============================================================ */
+const TOUCH_R_RATIO = 0.42;
+const THROTTLE_STEP = 0.1;
+const TRIM_STEP     = 5;
+const MEM_HOLD_MS   = 550;
+
+/* ---------- throttle grab band ---------- */
+// تاچ فقط وقتی می‌تونه گاز رو تغییر بده که در باند ±(این مقدار) از موقعیت فعلی استیک باشه
+const THR_GRAB_HALF_FRAC = 0.22;   // 22% ارتفاع گیمبال در هر طرف → کل باند ≈ ۴۴٪
+                                    // عدد کمتر = محدودتر، عدد بیشتر = بازتر
+
+/* ---------- EXPO curves ---------- */
+const EXPO_STICK = 1.55;
+const EXPO_KNOB  = 1.45;
+function applyExpo(x, exp){
+  if(x === 0) return 0;
+  const s = x < 0 ? -1 : 1;
+  return s * Math.pow(Math.abs(x), exp);
+}
+
+/* ---------- TRIM progressive repeat ---------- */
+const TRIM_BASE_DELAY  = 520;
+const TRIM_ACCEL_TIME  = 1400;
+const TRIM_MIN_DELAY   = 70;
+const TRIM_PAUSE_ZERO  = 1000;
+
+/* ============================================================
+   audio
+============================================================ */
+let audioCtx = null;
+function ensureAudio(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e){ audioCtx = null; }
+  }
+  if(audioCtx && audioCtx.state === 'suspended'){
+    try{ audioCtx.resume(); }catch(e){}
+  }
+}
+function beep(freq, durMs){
+  ensureAudio();
+  if(!audioCtx) return;
+  try{
+    const t = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.value = freq || 800;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.075, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (durMs||25)/1000);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + (durMs||25)/1000 + 0.01);
+  }catch(e){}
+}
+function vibrate(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+
+let toastT = null;
+function toast(msg, kind){
+  const el = $('#toast');
+  el.textContent = msg;
+  el.className = 'show' + (kind ? ' ' + kind : '');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.className = '', 1200);
+}
+
+/* ============================================================
+   state
+============================================================ */
+const state = {
+  lx:0, ly:0,
+  rx:0, ry:-1,
+  trim: { lx:0, ly:0, rx:0, ry:0 },
+  sw5: 0,
+  knob: 0.5,
+  bat: null, rssi: null, dist: null, teleAt: 0,
+};
+
+/* ============================================================
+   channels
+============================================================ */
+function computeChannels(){
+  const inv = cfg.inv;
+  const sgn = k => inv[k] ? -1 : 1;
+  const lxE = applyExpo(state.lx, EXPO_STICK);
+  const lyE = applyExpo(state.ly, EXPO_STICK);
+  const rxE = applyExpo(state.rx, EXPO_STICK);
+  const ryE = applyExpo(state.ry, EXPO_STICK);
+  const kE  = applyExpo((state.knob - 0.5) * 2, EXPO_KNOB);
+  let c = [
+    1500 + lxE * 500 * sgn('lx') + state.trim.lx,
+    1500 + lyE * 500 * sgn('ly') + state.trim.ly,
+    1500 + ryE * 500 * sgn('ry') + state.trim.ry,
+    1500 + rxE * 500 * sgn('rx') + state.trim.rx,
+    state.sw5 ? 2000 : 1000,
+    1500 + kE * 500,
+  ];
+  c = c.map((v,i) => cfg.rev[i] ? (3000 - v) : v);
+  return c.map(v => Math.round(clamp(v, 1000, 2000)));
+}
+
+/* ============================================================
+   WebSocket
+============================================================ */
+let ws = null, reconnectT = null, sendT = null, wantConnect = true;
+function setStatus(on, txt){
+  $('#dot').classList.toggle('on', on);
+  $('#connTxt').textContent = txt || (on ? 'وصل' : 'قطع');
+}
+function connect(){
+  wantConnect = true;
+  clearTimeout(reconnectT);
+  try{ if(ws){ ws.onclose = null; ws.close(); } }catch(e){}
+  setStatus(false, 'در حال اتصال...');
+  try{ ws = new WebSocket(cfg.wsUrl); }
+  catch(e){ setStatus(false, 'آدرس نامعتبر'); scheduleReconnect(); return; }
+  ws.onopen    = () => setStatus(true, 'وصل');
+  ws.onerror   = () => setStatus(false, 'خطا');
+  ws.onclose   = () => { setStatus(false, 'قطع'); scheduleReconnect(); };
+  ws.onmessage = e => handleRx(e.data);
+}
+function scheduleReconnect(){
+  if(!wantConnect) return;
+  clearTimeout(reconnectT);
+  reconnectT = setTimeout(connect, 1500);
+}
+function handleRx(data){
+  if(typeof data !== 'string') return;
+  const s = data.trim();
+  if(s.startsWith('{')){
+    try{
+      const o = JSON.parse(s);
+      if('bat' in o || 'rssi' in o || 'dist' in o){
+        if('bat'  in o) state.bat  = +o.bat;
+        if('rssi' in o) state.rssi = +o.rssi;
+        if('dist' in o) state.dist = +o.dist;
+        state.teleAt = performance.now();
+        return;
+      }
+    }catch(e){}
+  }
+  if(s.startsWith('T,') || s.startsWith('T:')){
+    const p = s.slice(2).split(',');
+    if(p.length >= 3){
+      state.bat  = parseFloat(p[0]);
+      state.rssi = parseFloat(p[1]);
+      state.dist = parseFloat(p[2]);
+      state.teleAt = performance.now();
+    }
+  }
+}
+
+/* ============================================================
+   channel monitor
+============================================================ */
+const chEls = [];
+(function buildMon(){
+  const m = $('#chmon');
+  const names = ['CH1 AIL','CH2 ELE','CH3 THR','CH4 RUD','CH5 SW','CH6 KNOB'];
+  for(let i=0;i<6;i++){
+    const d = document.createElement('div');
+    d.className = 'chip';
+    d.dataset.ch = i;
+    d.innerHTML = `<span class="cid">${names[i]}</span><span class="cval">1500</span>`;
+    m.appendChild(d);
+    chEls.push({v:d.querySelector('.cval'), el:d});
+    d.addEventListener('click', () => toggleReverse(i));
+    if(cfg.rev[i]) d.classList.add('rev');
+  }
+})();
+function renderMon(ch){
+  for(let i=0;i<6;i++){
+    const v = ch[i];
+    chEls[i].v.textContent = v;
+    chEls[i].el.style.setProperty('--p', ((v-1000)/10) + '%');
+  }
+}
+function toggleReverse(i){
+  cfg.rev[i] = !cfg.rev[i];
+  chEls[i].el.classList.toggle('rev', cfg.rev[i]);
+  if(gauges[i]) gauges[i].el.classList.toggle('rev', cfg.rev[i]);
+  save();
+  vibrate(12);
+  beep(cfg.rev[i] ? 500 : 1000, 25);
+}
+
+/* ============================================================
+   gauges
+============================================================ */
+const ARC_LEN = Math.PI * 40;
+const gauges = [];
+(function buildGauges(){
+  const host = $('#gauges');
+  const names = ['CH1 AIL','CH2 ELE','CH3 THR','CH4 RUD','CH5 SW','CH6 KNOB'];
+  for(let i=0;i<6;i++){
+    const el = document.createElement('div');
+    el.className = 'gauge';
+    el.dataset.ch = i;
+    el.innerHTML = `
+      <svg viewBox="0 0 100 68" preserveAspectRatio="xMidYMid meet">
+        <path class="g-bg" d="M 10 55 A 40 40 0 0 1 90 55"/>
+        <path class="g-fg" d="M 10 55 A 40 40 0 0 1 90 55"/>
+        <line class="g-needle" x1="50" y1="55" x2="50" y2="18"/>
+        <circle cx="50" cy="55" r="3.5" class="g-hub"/>
+        <text class="g-txt" x="50" y="50" text-anchor="middle">1500</text>
+      </svg>
+      <div class="g-lbl">${names[i]}</div>
+    `;
+    host.appendChild(el);
+    const fg = el.querySelector('.g-fg');
+    const needle = el.querySelector('.g-needle');
+    const txt = el.querySelector('.g-txt');
+    el.addEventListener('click', () => toggleReverse(i));
+    if(cfg.rev[i]) el.classList.add('rev');
+    gauges.push({el, fg, needle, txt});
+  }
+})();
+function renderGauges(ch){
+  for(let i=0;i<6;i++){
+    const v = ch[i];
+    const norm = (v - 1000) / 1000;
+    const g = gauges[i];
+    if(!g) continue;
+    const dash = ARC_LEN * norm;
+    g.fg.style.strokeDasharray = dash.toFixed(2) + ' ' + ARC_LEN.toFixed(2);
+    const ang = (norm - 0.5) * Math.PI;
+    const nx = 50 + 32 * Math.sin(ang);
+    const ny = 55 - 32 * Math.cos(ang);
+    g.needle.setAttribute('x2', nx.toFixed(2));
+    g.needle.setAttribute('y2', ny.toFixed(2));
+    g.txt.textContent = v;
+  }
+}
+
+/* ============================================================
+   gimbals — با امکان قفل کردن محور Y (برای گاز)
+============================================================ */
+const STICK_TRAVEL = 39;
+
+function makeGimbal(zoneEl, gimbalEl, getXY, setXY, onRelease, opts){
+  opts = opts || {};
+  const stick = gimbalEl.querySelector('.stick');
+  function render(){
+    const [x,y] = getXY();
+    stick.style.left = (50 + x*STICK_TRAVEL) + '%';
+    stick.style.top  = (50 - y*STICK_TRAVEL) + '%';
+  }
+  render();
+
+  let pid = null;
+  let allowY = true;
+  let frozenY = 0;
+
+  function applyFrom(e, isDown){
+    const zr = zoneEl.getBoundingClientRect();
+    const zcx = zr.left + zr.width/2;
+    const zcy = zr.top  + zr.height/2;
+    const R   = Math.min(zr.width, zr.height) * TOUCH_R_RATIO;
+
+    if(isDown){
+      // در لحظه‌ی شروع لمس، تصمیم بگیر که اجازه‌ی تغییر Y داریم یا نه
+      if(typeof opts.allowYAt === 'function'){
+        allowY = !!opts.allowYAt(e);
+      } else {
+        allowY = true;
+      }
+      frozenY = getXY()[1];
+    }
+
+    const x = clamp((e.clientX - zcx) / R, -1, 1);
+    const y = allowY
+      ? clamp(-(e.clientY - zcy) / R, -1, 1)
+      : frozenY;
+
+    setXY(x, y); render();
+  }
+
+  zoneEl.addEventListener('pointerdown', e => {
+    if(pid !== null) return;
+    ensureAudio();
+    pid = e.pointerId;
+    zoneEl.setPointerCapture(pid);
+    applyFrom(e, true);
+    e.preventDefault();
+  });
+  zoneEl.addEventListener('pointermove', e => {
+    if(pid !== e.pointerId) return;
+    applyFrom(e, false); e.preventDefault();
+  });
+  const end = e => {
+    if(pid !== e.pointerId) return;
+    pid = null;
+    if(onRelease) onRelease();
+    render();
+  };
+  zoneEl.addEventListener('pointerup', end);
+  zoneEl.addEventListener('pointercancel', end);
+  return { render };
+}
+
+/* LEFT: هر دو فنری */
+makeGimbal($('#zoneL'), $('#gimbalL'),
+  () => [state.lx, state.ly],
+  (x,y) => { state.lx = x; state.ly = y; },
+  () => { state.lx = 0; state.ly = 0; }
+);
+
+/* RIGHT: Rudder فنری، Throttle پله‌ای + با باند گرفتن محدود */
+makeGimbal($('#zoneR'), $('#gimbalR'),
+  () => [state.rx, state.ry],
+  (x,y) => {
+    state.rx = x;
+    state.ry = clamp(Math.round(y / THROTTLE_STEP) * THROTTLE_STEP, -1, 1);
+  },
+  () => { state.rx = 0; },
+  {
+    // تصمیم در لحظه‌ی pointerdown: آیا اجازه‌ی تغییر گاز داریم؟
+    allowYAt: (e) => {
+      const gr = $('#gimbalR').getBoundingClientRect();
+      if(gr.height < 10) return true;
+      const gcy = gr.top + gr.height/2;
+      // موقعیت فعلی استیک گاز روی صفحه
+      const stickScreenY = gcy - state.ry * (STICK_TRAVEL/100) * gr.height;
+      // نصف باند بر حسب پیکسل
+      const half = gr.height * THR_GRAB_HALF_FRAC;
+      return Math.abs(e.clientY - stickScreenY) <= half;
+    }
+  }
+);
+
+/* ---------- به‌روزرسانی نوار زرد (راهنمای باند گاز) ---------- */
+const thrBandEl = $('#thrBand');
+function renderThrottleBand(){
+  const gr = $('#gimbalR').getBoundingClientRect();
+  if(gr.height < 10) return;
+  // نصف باند به درصد → کل باند = 2*half
+  const halfPct = THR_GRAB_HALF_FRAC * 100;
+  // موقعیت بالای باند بر حسب درصد گیمبال
+  // مرکز استیک: (50 - ry*STICK_TRAVEL)%
+  const centerPct = 50 - state.ry * STICK_TRAVEL;
+  const topPct = centerPct - halfPct;
+  thrBandEl.style.top = topPct + '%';
+  thrBandEl.style.height = (halfPct * 2) + '%';
+}
+renderThrottleBand();
+
+/* ============================================================
+   TRIMS
+============================================================ */
+const trimRenderers = {};
+function snapTrim(v){
+  return clamp(Math.round(v / TRIM_STEP) * TRIM_STEP, -cfg.trimMax, cfg.trimMax);
+}
+function renderTrimH(el){
+  const key = el.dataset.axis;
+  const thumb = el.querySelector('.trim-h-thumb');
+  const fill  = el.querySelector('.trim-h-fill');
+  const val   = el.querySelector('.trim-h-val');
+  const v = state.trim[key];
+  const R = cfg.trimMax;
+  const t = (v + R) / (2*R);
+  thumb.style.left = (t*100) + '%';
+  if(v >= 0){
+    fill.style.left = '50%'; fill.style.right = ((1-t)*100) + '%'; fill.style.width='auto';
+  } else {
+    fill.style.left = (t*100) + '%'; fill.style.right = '50%'; fill.style.width='auto';
+  }
+  val.textContent = (v > 0 ? '+' : '') + v;
+}
+function renderTrimV(el){
+  const key = el.dataset.axis;
+  const thumb = el.querySelector('.trim-v-thumb');
+  const fill  = el.querySelector('.trim-v-fill');
+  const val   = el.querySelector('.trim-v-val');
+  const v = state.trim[key];
+  const R = cfg.trimMax;
+  const t = (v + R) / (2*R);
+  thumb.style.top = ((1-t)*100) + '%';
+  if(v >= 0){
+    fill.style.top = ((1-t)*100) + '%'; fill.style.bottom = '50%'; fill.style.height='auto';
+  } else {
+    fill.style.top = '50%'; fill.style.bottom = ((1-t)*100) + '%'; fill.style.height='auto';
+  }
+  if(val) val.textContent = (v > 0 ? '+' : '') + v;
+}
+
+let trimHoldTimer = null, trimHoldKey = null, trimHoldDir = 0;
+let trimHoldStart = 0;
+let trimPauseUntil = 0;
+let trimSpeedLevel = 1;
+
+function stepTrimOnce(){
+  if(!trimHoldKey) return false;
+  const prev = state.trim[trimHoldKey];
+  const next = snapTrim(prev + trimHoldDir * TRIM_STEP);
+  if(next === prev) return false;
+  state.trim[trimHoldKey] = next;
+  const r = trimRenderers[trimHoldKey];
+  if(r) r();
+  if(next === 0 && prev !== 0){
+    beep(1200, 45); vibrate(30);
+    trimPauseUntil = performance.now() + TRIM_PAUSE_ZERO;
+    trimHoldStart  = performance.now();
+    trimSpeedLevel = 1;
+    return true;
+  }
+  beep(trimHoldDir > 0 ? 840 : 640, 22);
+  return true;
+}
+function scheduleNextTrimStep(){
+  if(!trimHoldKey) return;
+  const now = performance.now();
+  if(now < trimPauseUntil){
+    trimHoldTimer = setTimeout(scheduleNextTrimStep, trimPauseUntil - now);
+    return;
+  }
+  const elapsed = now - trimHoldStart;
+  const level = 1 + Math.floor(elapsed / TRIM_ACCEL_TIME);
+  trimSpeedLevel = level;
+  const delay = Math.max(TRIM_MIN_DELAY, TRIM_BASE_DELAY / level);
+  trimHoldTimer = setTimeout(() => {
+    if(!stepTrimOnce()){ stopTrimHold(); return; }
+    scheduleNextTrimStep();
+  }, delay);
+}
+function startTrimHold(key, dir){
+  stopTrimHold();
+  trimHoldKey = key; trimHoldDir = dir;
+  trimHoldStart = performance.now();
+  trimPauseUntil = 0;
+  trimSpeedLevel = 1;
+  if(!stepTrimOnce()){ stopTrimHold(); return; }
+  scheduleNextTrimStep();
+}
+function stopTrimHold(){
+  if(trimHoldTimer){ clearTimeout(trimHoldTimer); trimHoldTimer = null; }
+  trimHoldKey = null; trimHoldDir = 0;
+  trimPauseUntil = 0; trimSpeedLevel = 1;
+}
+
+$$('.trim-h').forEach(el => {
+  const key = el.dataset.axis;
+  const track = el.querySelector('.trim-h-track');
+  renderTrimH(el);
+  trimRenderers[key] = () => renderTrimH(el);
+  let pid = null;
+  function applyStep(e){
+    const r = track.getBoundingClientRect();
+    const t = clamp((e.clientX - r.left)/r.width, 0, 1);
+    const curT = (state.trim[key] + cfg.trimMax) / (2*cfg.trimMax);
+    const dir = (t < curT) ? -1 : (t > curT ? 1 : 0);
+    if(dir === 0) return;
+    if(pid !== null && trimHoldKey === key && trimHoldDir === dir) return;
+    startTrimHold(key, dir);
+  }
+  track.addEventListener('pointerdown', e => {
+    ensureAudio(); e.stopPropagation();
+    pid = e.pointerId; track.setPointerCapture(pid);
+    applyStep(e); e.preventDefault();
+  });
+  track.addEventListener('pointermove', e => {
+    if(pid !== e.pointerId) return;
+    e.stopPropagation();
+    applyStep(e); e.preventDefault();
+  });
+  const end = e => {
+    if(pid !== e.pointerId) return;
+    pid = null; stopTrimHold();
+  };
+  track.addEventListener('pointerup', end);
+  track.addEventListener('pointercancel', end);
+});
+
+$$('.trim-v').forEach(el => {
+  const key = el.dataset.axis;
+  const track = el.querySelector('.trim-v-track');
+  renderTrimV(el);
+  trimRenderers[key] = () => renderTrimV(el);
+  let pid = null;
+  function applyStep(e){
+    const r = track.getBoundingClientRect();
+    const t = clamp((e.clientY - r.top)/r.height, 0, 1);
+    const curT = 1 - (state.trim[key] + cfg.trimMax) / (2*cfg.trimMax);
+    const dir = (t > curT) ? -1 : (t < curT ? 1 : 0);
+    if(dir === 0) return;
+    if(pid !== null && trimHoldKey === key && trimHoldDir === dir) return;
+    startTrimHold(key, dir);
+  }
+  track.addEventListener('pointerdown', e => {
+    ensureAudio(); e.stopPropagation();
+    pid = e.pointerId; track.setPointerCapture(pid);
+    applyStep(e); e.preventDefault();
+  });
+  track.addEventListener('pointermove', e => {
+    if(pid !== e.pointerId) return;
+    e.stopPropagation();
+    applyStep(e); e.preventDefault();
+  });
+  const end = e => {
+    if(pid !== e.pointerId) return;
+    pid = null; stopTrimHold();
+  };
+  track.addEventListener('pointerup', end);
+  track.addEventListener('pointercancel', end);
+});
+
+/* ============================================================
+   CH5 switch
+============================================================ */
+const sw5El = $('#sw5');
+const sw5Knob = sw5El.querySelector('.knob');
+function renderSw5(){
+  sw5Knob.style.left = state.sw5 ? 'calc(100% - 25px)' : '3px';
+  sw5El.classList.toggle('on', !!state.sw5);
+}
+renderSw5();
+sw5El.addEventListener('pointerdown', e => {
+  ensureAudio();
+  state.sw5 = state.sw5 ? 0 : 1;
+  renderSw5();
+  vibrate(10); beep(state.sw5 ? 1000 : 700, 25);
+  e.preventDefault();
+});
+
+/* ============================================================
+   CH6 KNOB
+============================================================ */
+const knobEl  = $('#knob6');
+const knobDial = knobEl.querySelector('.knob-dial');
+function renderKnob(){
+  const a = (state.knob - 0.5) * 2;
+  knobDial.style.transform = 'rotate(' + (a * 135) + 'deg)';
+}
+renderKnob();
+let knobPid = null;
+let knobLastAngle = null;
+function angleFromEvent(e){
+  const r  = knobEl.getBoundingClientRect();
+  const cx = r.left + r.width/2;
+  const cy = r.top  + r.height/2;
+  const dx = e.clientX - cx;
+  const dy = cy - e.clientY;
+  return Math.atan2(dx, dy);
+}
+function applyKnob(e){
+  const phi = angleFromEvent(e);
+  if(knobLastAngle === null){ knobLastAngle = phi; return; }
+  let delta = phi - knobLastAngle;
+  if(delta >  Math.PI) delta -= 2 * Math.PI;
+  if(delta < -Math.PI) delta += 2 * Math.PI;
+  knobLastAngle = phi;
+  const SENS = 1 / (1.5 * Math.PI);
+  state.knob = clamp(state.knob + delta * SENS, 0, 1);
+  renderKnob();
+}
+knobEl.addEventListener('pointerdown', e => {
+  ensureAudio();
+  knobPid = e.pointerId;
+  knobEl.setPointerCapture(knobPid);
+  knobLastAngle = null;
+  applyKnob(e);
+  e.preventDefault();
+});
+knobEl.addEventListener('pointermove', e => {
+  if(knobPid !== e.pointerId) return;
+  applyKnob(e); e.preventDefault();
+});
+const knobEnd = e => {
+  if(knobPid !== e.pointerId) return;
+  knobPid = null;
+  knobLastAngle = null;
+};
+knobEl.addEventListener('pointerup', knobEnd);
+knobEl.addEventListener('pointercancel', knobEnd);
+
+/* ============================================================
+   MEMORY buttons
+============================================================ */
+let mem = { 1: null, 2: null };
+try{
+  const s = JSON.parse(localStorage.getItem('rctx_mem7') || 'null');
+  if(s){ mem = { 1: s[1] || null, 2: s[2] || null }; }
+}catch(e){}
+function saveMem(){ localStorage.setItem('rctx_mem7', JSON.stringify(mem)); }
+function updateMemBtn(n){
+  const b = document.getElementById('mem'+n);
+  b.classList.toggle('saved', !!mem[n]);
+}
+updateMemBtn(1); updateMemBtn(2);
+
+function memoryWrite(n){
+  mem[n] = {
+    rev : [...cfg.rev],
+    trim: JSON.parse(JSON.stringify(state.trim)),
+    inv : { ...cfg.inv },
+  };
+  saveMem(); updateMemBtn(n);
+  vibrate(35); beep(1200, 45); setTimeout(() => beep(1500, 45), 60);
+  toast('ذخیره در مموری ' + n, 'ok');
+}
+function memoryRead(n){
+  const m = mem[n];
+  if(!m){ toast('مموری ' + n + ' خالی', 'warn'); vibrate(15); return; }
+  cfg.rev = m.rev.concat(new Array(6).fill(false)).slice(0,6);
+  state.trim = { ...m.trim };
+  if(m.inv) cfg.inv = { ...m.inv };
+  save();
+  chEls.forEach((c,i) => c.el.classList.toggle('rev', !!cfg.rev[i]));
+  gauges.forEach((g,i) => g.el.classList.toggle('rev', !!cfg.rev[i]));
+  Object.values(trimRenderers).forEach(f => f && f());
+  vibrate(25); beep(900, 40);
+  toast('بارگذاری مموری ' + n, 'ok');
+}
+
+['1','2'].forEach(id => {
+  const b = document.getElementById('mem'+id);
+  const n = +id;
+  let holdT = null, held = false;
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault(); ensureAudio();
+    held = false;
+    holdT = setTimeout(() => { held = true; memoryWrite(n); }, MEM_HOLD_MS);
+  });
+  const finish = () => {
+    clearTimeout(holdT);
+    if(!held) memoryRead(n);
+    held = false;
+  };
+  b.addEventListener('pointerup', finish);
+  b.addEventListener('pointercancel', () => { clearTimeout(holdT); held = false; });
+});
+
+/* ============================================================
+   Gimbal sizing
+============================================================ */
+function sizeGimbals(){
+  const trimV_W = 22 + 6;
+  const trimH_H = 26 + 6;
+  const margin  = 8;
+
+  ['L','R'].forEach(side => {
+    const zone   = $('#zone'+side);
+    const group  = $('#group'+side);
+    const gimbal = $('#gimbal'+side);
+    const zr = zone.getBoundingClientRect();
+    if(zr.width < 40 || zr.height < 40) return;
+
+    const availW = zr.width - trimV_W - margin * 2;
+    const availH = zr.height - trimH_H - margin * 2;
+
+    let size = Math.floor(Math.min(availW, availH));
+    size = clamp(size, 80, 600);
+
+    gimbal.style.width  = size + 'px';
+    gimbal.style.height = size + 'px';
+
+    const tv = group.querySelector('.trim-v');
+    const th = group.querySelector('.trim-h');
+    if(tv) tv.style.height = size + 'px';
+    if(th) th.style.width  = size + 'px';
+  });
+
+  Object.values(trimRenderers).forEach(f => f && f());
+  renderThrottleBand();
+}
+window.addEventListener('resize', sizeGimbals);
+window.addEventListener('orientationchange', () => setTimeout(sizeGimbals, 200));
+if(window.ResizeObserver){
+  new ResizeObserver(sizeGimbals).observe($('#main'));
+}
+requestAnimationFrame(() => { sizeGimbals(); requestAnimationFrame(sizeGimbals); });
+setTimeout(sizeGimbals, 150);
+
+/* ============================================================
+   send loop
+============================================================ */
+function startSend(){
+  clearInterval(sendT);
+  const ms = Math.max(8, Math.round(1000 / cfg.rateHz));
+  sendT = setInterval(() => {
+    const ch = computeChannels();
+    if(ws && ws.readyState === 1) ws.send(ch.join(',') + '\n');
+  }, ms);
+}
+
+setInterval(() => {
+  const ch = computeChannels();
+  renderMon(ch);
+  renderGauges(ch);
+  renderThrottleBand();
+}, 50);
+
+/* ============================================================
+   Telemetry
+============================================================ */
+let simPhase = 0;
+function tickTelemetry(){
+  simPhase += 0.06;
+  const now = performance.now();
+  const hasReal = state.teleAt && (now - state.teleAt < 2000);
+  const simulating = !hasReal;
+  let bat, rssi, dist;
+  if(hasReal){
+    bat = state.bat; rssi = state.rssi; dist = state.dist;
+  } else {
+    bat  = 3.7 + 0.28 * Math.sin(simPhase*0.37);
+    rssi = 78  + 15   * Math.sin(simPhase*0.71);
+    dist = 15  + 8    * Math.sin(simPhase*0.53);
+  }
+  $('#tBat').textContent  = bat  != null ? bat.toFixed(2)  : '—';
+  $('#tRssi').textContent = rssi != null ? Math.round(rssi) : '—';
+  $('#tDist').textContent = dist != null ? Math.round(dist) : '—';
+  ['tiBat','tiRssi','tiDist'].forEach(id =>
+    document.getElementById(id).classList.toggle('sim', simulating));
+}
+setInterval(tickTelemetry, 200);
+tickTelemetry();
+
+/* ============================================================
+   settings
+============================================================ */
+function openSettings(){
+  const inv = cfg.inv;
+  const ck = (id, val) => `<input type="checkbox" id="${id}" ${val?'checked':''}>`;
+  let h = `<h2>⚙ تنظیمات رادیو</h2>`;
+
+  h += `<div class="card"><div class="ct">اتصال</div>
+    <div class="cfgrow"><span>آدرس WebSocket</span>
+      <input type="text" id="s_ws" dir="ltr" value="${cfg.wsUrl}"></div>
+    <div class="cfgrow"><span>نرخ ارسال (Hz)</span>
+      <input type="number" id="s_rate" min="5" max="120" value="${cfg.rateHz}"></div>
+  </div>`;
+
+  h += `<div class="card"><div class="ct">معکوس محورها (ورودی)</div>
+    <div class="cfgrow"><span>X گیمبال چپ — ایلرون</span>${ck('s_ilx', inv.lx)}</div>
+    <div class="cfgrow"><span>Y گیمبال چپ — الواتور</span>${ck('s_ily', inv.ly)}</div>
+    <div class="cfgrow"><span>X گیمبال راست — رادر</span>${ck('s_irx', inv.rx)}</div>
+    <div class="cfgrow"><span>Y گیمبال راست — گاز</span>${ck('s_iry', inv.ry)}</div>
+  </div>`;
+
+  h += `<div class="card"><div class="ct">معکوس کانال‌ها (خروجی)</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:6px">
+      لمس چیپ یا گیج هم ریورس می‌کنه.
+    </div>`;
+  const names = ['CH1 AIL','CH2 ELE','CH3 THR','CH4 RUD','CH5 SW','CH6 KNOB'];
+  names.forEach((n,i) => {
+    h += `<div class="cfgrow"><span>${n}</span>
+      <input type="checkbox" data-rev="${i}" ${cfg.rev[i]?'checked':''}></div>`;
+  });
+  h += `</div>`;
+
+  h += `<div class="card"><div class="ct">تریم</div>
+    <div class="cfgrow"><span>حداکثر دامنه (µs)</span>
+      <input type="number" id="s_tr" min="20" max="400" value="${cfg.trimMax}"></div>
+  </div>`;
+
+  h += `<div class="card" style="font-size:11px;color:var(--dim);line-height:1.7">
+    <div class="ct">منحنی‌های EXPO فعال</div>
+    استیک‌ها: توان ${EXPO_STICK} · ولوم CH6: توان ${EXPO_KNOB}<br>
+    تریم: شتاب تدریجی + مکث ۱ ثانیه هنگام عبور از صفر<br>
+    ولوم CH6: چرخش محاوره‌ای (تاچ delta)<br>
+    گاز: فقط از نوار زرد (باند ±${Math.round(THR_GRAB_HALF_FRAC*100)}% حول استیک) قابل تغییر است
+  </div>`;
+
+  h += `<div class="card" style="font-size:11px;color:var(--dim);line-height:1.7">
+    <div class="ct">پروتکل ESP</div>
+    خروجی: <code style="color:var(--acc)">ch1,ch2,ch3,ch4,ch5,ch6\\n</code><br>
+    ورودی JSON: <code style="color:var(--acc)">{"bat":3.85,"rssi":85,"dist":12}</code>
+  </div>`;
+
+  h += `<div class="acts">
+    <button id="s_reconnect">اتصال مجدد</button>
+    <button id="s_reset">بازنشانی</button>
+    <button class="pri" id="s_close">بستن</button>
+  </div>`;
+
+  $('#sheet').innerHTML = h;
+  $('#modal').classList.add('show');
+}
+
+$('#sheet').addEventListener('input', e => {
+  const t = e.target;
+  if(t.id === 's_ws'){ cfg.wsUrl = t.value.trim(); save(); return; }
+  if(t.id === 's_rate'){ cfg.rateHz = clamp(+t.value||50, 5, 120); save(); startSend(); return; }
+  if(t.id === 's_tr'){
+    cfg.trimMax = clamp(+t.value||150, 20, 400); save();
+    Object.values(trimRenderers).forEach(f => f && f());
+    return;
+  }
+  const map = { s_ilx:'lx', s_ily:'ly', s_irx:'rx', s_iry:'ry' };
+  if(map[t.id]){ cfg.inv[map[t.id]] = t.checked; save(); return; }
+  if(t.dataset && t.dataset.rev !== undefined){
+    const i = +t.dataset.rev;
+    cfg.rev[i] = t.checked;
+    chEls[i].el.classList.toggle('rev', t.checked);
+    if(gauges[i]) gauges[i].el.classList.toggle('rev', t.checked);
+    save();
+  }
+});
+
+$('#sheet').addEventListener('click', e => {
+  if(e.target.id === 's_close')     $('#modal').classList.remove('show');
+  if(e.target.id === 's_reconnect') connect();
+  if(e.target.id === 's_reset'){
+    if(confirm('همه تنظیمات به حالت پیش‌فرض برگرده؟')){
+      localStorage.removeItem('rctx_v7');
+      localStorage.removeItem('rctx_mem7');
+      location.reload();
+    }
+  }
+});
+$('#gear').addEventListener('click', e => { e.stopPropagation(); openSettings(); });
+$('#modal').addEventListener('click', e => {
+  if(e.target.id === 'modal') $('#modal').classList.remove('show');
+});
+
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('contextmenu',  e => e.preventDefault());
+
+/* ============================================================
+   start
+============================================================ */
+connect();
+startSend();
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
